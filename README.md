@@ -109,10 +109,61 @@ bait question → `CAPTION:` line with hashtags). Edit module 2 to taste.
    (or delete the node — the data is already saved to Sheets and `Tidy fields`).
 6. Click **Execute workflow** to run a batch whenever you want.
 
+### First-run checklist (do this in order)
+
+Everything machine-side is already done: the scraper runs as a systemd user
+service (`folklore-scraper.service`, bound to `0.0.0.0:8099`), the firewall
+allows the Docker subnet, and the workflow's scraper URL points at
+`host.docker.internal`. What's left is spreadsheet + credential work in the
+n8n UI (~10 minutes):
+
+- [ ] **Scraper healthy?**  `curl http://127.0.0.1:8099/health` → `{"status": "ok", ...}`
+- [ ] **Create the Google Sheet** — name it, add a `Topics` tab, header row
+      `Timestamp | Title | URL` (exact names — see the mapping table below)
+- [ ] **Paste the spreadsheet ID** into the **Log topic to Sheets** node
+      (replace `YOUR_SPREADSHEET_ID`)
+- [ ] **Google Sheets OAuth2 credential** — create it in the node and finish
+      the Google sign-in (Docker redirect-URL gotcha documented below)
+- [ ] **Gemini credential** — the **Gemini: write 60s script** node needs a
+      **Header Auth** credential: name `x-goog-api-key`, value = your Gemini
+      API key (free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey))
+- [ ] **Telegram (optional)** — set your channel/chat ID in **Send to Telegram**;
+      it currently points at the existing `Voice Receptionist Bot` credential —
+      swap it for a dedicated bot if you prefer
+- [ ] Click **Execute workflow**
+
+**Expected result:** up to 3 new rows in the `Topics` tab (one per story), one
+`folklore-<title>.txt` script generated per story, and one Telegram message per
+story (if configured).
+
+**If something fails:**
+
+| Symptom | Fix |
+| :--- | :--- |
+| Scraper node: *connection refused* | Start the service: `systemctl --user start folklore-scraper` |
+| Scraper node: *timeout* | ufw rule missing: `sudo ufw allow from 172.16.0.0/12 to any port 8099 proto tcp` |
+| Gemini node: *401 / 403* | Header Auth credential missing or wrong API key |
+| Sheets node: document/credential error | Spreadsheet ID or OAuth credential not set yet |
+| Runs fine but 0 rows | Every pool story is already recorded in `folklore-scraper-seen.json` (repo dir, gitignored). Delete that file to re-deliver the whole pool on the next run, or add more pages to `CATEGORY_PAGES` for fresh topics |
+
 ### Google Sheets topic tracker
 
 Every processed story is appended to a spreadsheet so you can see at a glance
 which folklore topics have been covered and when.
+
+**Column mapping (header row must match exactly)**
+
+The **Log topic to Sheets** node appends three fields by header name — your
+sheet's first row must use these exact column names:
+
+| Sheet column (row 1 header) | Filled with | Example |
+| :--- | :--- | :--- |
+| `Timestamp` | When the run processed the story — `{{ $now.format('yyyy-MM-dd HH:mm:ss') }}` | `2026-09-23 09:14:02` |
+| `Title` | The story title from the scraper (`Tidy fields` → `title`) | `Banshee` |
+| `URL` | The Wikipedia source URL (`Tidy fields` → `url`) | `https://en.wikipedia.org/wiki/Banshee` |
+
+Extra columns (e.g. `Status`, `Script link`, `Posted?`) are fine to add —
+they'll simply stay empty unless you map them in the node.
 
 **1. Create the spreadsheet**
 

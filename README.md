@@ -77,9 +77,12 @@ bait question → `CAPTION:` line with hashtags). Edit module 2 to taste.
 
 ## 3. n8n setup (`n8n/workflow.json`)
 
-**Workflow:** Schedule (Wed 6AM PHT) → HTTP pull → Split → Gemini → Tidy → File → Telegram.
+**Workflow:** Execute (manual click) → HTTP pull → Split → Gemini → Tidy → Sheets log → File → Telegram.
 
 1. n8n → **Workflows → Import from File** → `n8n/workflow.json`.
+   The workflow triggers **manually** — click **Execute workflow** to run one
+   batch (pull up to 3 new stories → a Gemini script each → Sheets log →
+   Telegram). Add a Schedule trigger node later if you want full automation.
 2. **Scraper host**: the workflow pulls `http://host.docker.internal:8099/stories?limit=3`
    (correct when n8n runs in Docker — `host.docker.internal` is mapped to the
    host by the `extra_hosts` entry in the n8n compose file).
@@ -99,9 +102,56 @@ bait question → `CAPTION:` line with hashtags). Edit module 2 to taste.
    - n8n in the cloud? Run the scraper on any always-on box and edit the URL.
 3. **Gemini credential**: Credentials → New → **Header Auth** →
    name `x-goog-api-key`, value = your Gemini API key → select it in the Gemini node.
-4. **Telegram node**: set your channel/chat ID and connect a Telegram bot credential
-   (or delete it and add Gmail/Sheets — the data is in `Tidy fields`).
-5. Activate. Every Wednesday 6AM PHT: pull up to 3 new stories → one Gemini script each → Telegram.
+4. **Google Sheets topic tracker** (see the next section for the full walkthrough):
+   create the spreadsheet, paste its ID into the **Log topic to Sheets** node,
+   and connect a Google Sheets credential.
+5. **Telegram node**: set your channel/chat ID and connect a Telegram bot credential
+   (or delete the node — the data is already saved to Sheets and `Tidy fields`).
+6. Click **Execute workflow** to run a batch whenever you want.
+
+### Google Sheets topic tracker
+
+Every processed story is appended to a spreadsheet so you can see at a glance
+which folklore topics have been covered and when.
+
+**1. Create the spreadsheet**
+
+- Go to [sheets.new](https://sheets.new), name it e.g. `ai-folklore topics`.
+- Rename the first tab to **`Topics`** (must match the node's sheet name).
+- Add a header row: `Timestamp | Title | URL`.
+
+**2. Grab the spreadsheet ID**
+
+From the sheet's URL, copy the part between `/d/` and `/edit`:
+
+```
+https://docs.google.com/spreadsheets/d/<THIS_PART_IS_THE_ID>/edit
+```
+
+**3. Point the node at it**
+
+- Open the **Log topic to Sheets** node → **Document** → paste the ID
+  (replace the `YOUR_SPREADSHEET_ID` placeholder).
+- **Sheet** should say `Topics`.
+
+**4. Create the credential**
+
+- In the node, **Credential → Create new** → *Google Sheets OAuth2 API*.
+- n8n in Docker: you must add Google OAuth **redirect URLs** first
+  (*Settings → n8n API → OAuth Redirect URLs* in the n8n UI, or set the
+  `N8N_OAUTH2_REDIRECT_URL` env var) — then n8n shows the exact redirect URL
+  to paste into your [Google Cloud console](https://console.cloud.google.com/)
+  OAuth client. Enable the **Google Sheets API** for that project.
+- Finish the **Connect to Google** sign-in popup.
+- Detailed docs: https://docs.n8n.io/integrations/builtin/credentials/google/
+
+**5. Test**
+
+Execute the workflow once, then check the `Topics` tab — a new row with
+`Timestamp | Title | URL` should appear for each story processed.
+
+> Don't want Sheets? Delete the **Log topic to Sheets** node and reconnect
+> `Tidy fields` → `Script to file` — nothing else changes.
 
 ---
 

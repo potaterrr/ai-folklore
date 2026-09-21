@@ -2,21 +2,16 @@
   "name": "ai-folklore — pull scraper + Gemini script",
   "nodes": [
     {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 6 * * 3"
-            }
-          ]
-        }
-      },
+      "parameters": {},
       "id": "a1b2c3d4-0001-4000-8000-000000000001",
-      "name": "Weekly (Wed 6AM PHT)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [0, 0]
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Manual trigger: click 'Execute workflow' to run one batch. Add a Schedule trigger node later if you want full automation."
     },
     {
       "parameters": {
@@ -33,7 +28,10 @@
       "name": "Pull stories from scraper",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0],
+      "position": [
+        220,
+        0
+      ],
       "notes": "Scraper must be reachable from the n8n container. On the n8n host run: systemctl --user enable --now folklore-scraper.service (binds 0.0.0.0:8099). host.docker.internal resolves to the host via the compose extra_hosts entry. If it times out, allow the Docker subnet through the firewall: sudo ufw allow from 172.16.0.0/12 to any port 8099 proto tcp. n8n NOT in Docker? Use http://127.0.0.1:8099 instead."
     },
     {
@@ -45,7 +43,10 @@
       "name": "Split Out Stories",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [440, 0]
+      "position": [
+        440,
+        0
+      ]
     },
     {
       "parameters": {
@@ -62,7 +63,10 @@
       "name": "Gemini: write 60s script",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 0],
+      "position": [
+        660,
+        0
+      ],
       "notes": "Create a Header Auth credential: name = x-goog-api-key, value = your Gemini API key. Free tier works."
     },
     {
@@ -95,7 +99,10 @@
       "name": "Tidy fields",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [880, 0]
+      "position": [
+        880,
+        0
+      ]
     },
     {
       "parameters": {
@@ -109,7 +116,10 @@
       "name": "Script to file",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
-      "position": [1100, 0]
+      "position": [
+        1320,
+        0
+      ]
     },
     {
       "parameters": {
@@ -124,22 +134,49 @@
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1320, 0],
+      "position": [
+        1540,
+        0
+      ],
       "notes": "Set your channel/chat id and Telegram credential. Swap for Gmail-draft or Sheets if you prefer review-by-email."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Topics",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+            "Title": "={{ $json.title }}",
+            "URL": "={{ $json.url }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000008",
+      "name": "Log topic to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        0
+      ],
+      "notes": "PLACEHOLDER SETUP: 1) Create a Google Sheet with a tab named 'Topics' and header row: Timestamp | Title | URL. 2) Copy the spreadsheet ID from its URL (between /d/ and /edit) into documentId. 3) Create/select a Google Sheets OAuth2 credential. See README.md section 'Google Sheets topic tracker'."
     }
   ],
   "connections": {
-    "Weekly (Wed 6AM PHT)": {
-      "main": [
-        [
-          {
-            "node": "Pull stories from scraper",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Pull stories from scraper": {
       "main": [
         [
@@ -177,7 +214,7 @@
       "main": [
         [
           {
-            "node": "Script to file",
+            "node": "Log topic to Sheets",
             "type": "main",
             "index": 0
           }
@@ -189,6 +226,28 @@
         [
           {
             "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Pull stories from scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log topic to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Script to file",
             "type": "main",
             "index": 0
           }

@@ -1,5 +1,8 @@
 # ai-folklore 🥔
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Daily folklore story push](https://img.shields.io/badge/GitHub_Actions-daily_6%3A30AM_PHT-2088FF?logo=githubactions&logoColor=white)]
+
 Folklore-story pipeline: **research → AI script → (Veo video) → publish**.
 This repo holds the research stage — a scraper that fetches folklore stories
 (title + summary) from Wikipedia and feeds them to Make.com or n8n, plus
@@ -109,7 +112,29 @@ python3 folklore_scraper.py scrape --limit 2
 ## Repo layout
 
 ```
-folklore_scraper.py     # the scraper (push / pull-API / file modes)
-make/blueprint.json     # importable Make.com scenario (webhook → Gemini → Gmail draft)
-n8n/workflow.json       # importable n8n workflow (schedule → pull → Gemini → Telegram)
+folklore_scraper.py               # the scraper (push / pull-API / file modes)
+make/blueprint.json               # importable Make.com scenario (webhook → Gemini → Gmail draft)
+n8n/workflow.json                 # importable n8n workflow (schedule → pull → Gemini → Telegram)
+.github/workflows/daily_scrape.yml # daily GitHub Actions run (6:30AM PHT)
 ```
+
+## Daily automation (GitHub Actions)
+
+`.github/workflows/daily_scrape.yml` runs the scraper **every day at 6:30 AM PHT**:
+
+1. Scrape up to 3 new stories (dedupe via the committed seen-file).
+2. POST each to your webhooks — set repo secrets **`AI_MAKE_URL`** and/or
+   **`AI_N8N_URL`** (Settings → Secrets and variables → Actions).
+3. Commit the updated seen/cache state back to the repo, so dedupe persists
+   across runs (the Actions runner is ephemeral — without this, every run
+   would re-deliver the same stories).
+
+Manual test run: **Actions → Daily folklore story push → Run workflow**.
+
+> Note: on GitHub's free plan, scheduled workflows in public repos run fine;
+> they're automatically disabled after 60 days of repo inactivity — any commit
+> (including the bot's own state commits) keeps it alive.
+
+## License
+
+[MIT](LICENSE) — use it, fork it, build your own folklore machine.

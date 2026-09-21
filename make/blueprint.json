@@ -1,0 +1,102 @@
+{
+  "name": "ai-folklore — story intake + Gemini script",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": "<YOUR_MAKE_WEBHOOK_ID>",
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 }
+      }
+    },
+    {
+      "id": 2,
+      "module": "google-gemini-ai:CreateCompletion",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "<YOUR_GEMINI_CONNECTION_ID>"
+      },
+      "mapper": {
+        "model": "gemini-2.0-flash",
+        "maxTokens": "800",
+        "temperature": "0.9",
+        "promptMessages": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "You are the scriptwriter for \"potaterrr\" 🥔, a folklore storytelling channel. Write a 60-second vertical-video narration script about the folklore story below.\n\nSTORY\nTitle: {{1.story.title}}\nSummary: {{1.story.summary}}\nSource: {{1.story.url}}\n\nRULES\n1. Structure: HOOK (first 3 seconds, spoken, no greetings) → the story told conversationally → a closing question to the comments.\n2. Total 130–160 spoken words (~60 seconds at normal pace).\n3. Stay faithful to the summary — do not invent new plot facts. Atmosphere and pacing are yours to play with.\n4. Tone: campfire storyteller. Vivid, a little eerie, zero academic language.\n5. Do not mention Wikipedia, sources, or that this came from anywhere.\n6. After the narration, output one line \"CAPTION: ...\" — a 1–2 sentence Facebook Reels caption with exactly 3 hashtags (#Folklore #PhilippineMythology + one fitting the story).\n\nOUTPUT FORMAT\nNARRATION:\n<the script, plain paragraphs>\nCAPTION: <caption line>"
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 },
+        "expect": [
+          { "name": "promptMessages", "type": "array" }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "module": "util:SetVariables2",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          { "name": "narration", "value": "{{replace(replace(2.result; \"/^[\\\\s\\\\S]*NARRATION:\\\\s*/\"; \"\"); \"/\\\\s*CAPTION:[\\\\s\\\\S]*$/\"; \"\")}}" },
+          { "name": "caption", "value": "{{replace(2.result; \"/^[\\\\s\\\\S]*CAPTION:\\\\s*/\"; \"\")}}" },
+          { "name": "story_title", "value": "{{1.story.title}}" },
+          { "name": "story_url", "value": "{{1.story.url}}" }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0 },
+        "expect": [
+          { "name": "variables", "type": "array" }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "google-gmail:CreateDraft",
+      "version": 2,
+      "parameters": {
+        "account": "<YOUR_GMAIL_CONNECTION_ID>"
+      },
+      "mapper": {
+        "to": [
+          "kristiandyanbusiness@gmail.com"
+        ],
+        "subject": "🥔 Folklore script ready: {{1.story.title}}",
+        "html": "<div style=\"font-family: Arial, sans-serif; font-size: 15px; color: #222222; line-height: 1.5;\"><b>Narration (60s):</b><br><br>{{3.narration}}<br><br><b>Caption:</b><br>{{3.caption}}<br><br><b>Source:</b> {{1.story.url}}</div>",
+        "attachments": []
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    }
+  },
+  "scheduling": {
+    "type": "immediately"
+  }
+}

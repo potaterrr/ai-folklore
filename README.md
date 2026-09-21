@@ -5,6 +5,10 @@ This repo holds the research stage — a scraper that fetches folklore stories
 (title + summary) from Wikipedia and feeds them to Make.com or n8n, plus
 importable blueprints for both.
 
+> ✅ **Tested against live Wikipedia** — batch scrape, dedupe, webhook push,
+> pull API, edge cases and concurrency. Full results:
+> [TESTING.md](TESTING.md)
+
 ```
 folklore_scraper.py ──push──▶ Make.com webhook ──▶ Gemini script ──▶ Gmail draft (review)
         │

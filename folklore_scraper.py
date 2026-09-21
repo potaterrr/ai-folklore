@@ -44,6 +44,7 @@ import json
 import os
 import random
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -56,6 +57,10 @@ CACHE_FILE = "folklore-scraper-cache.json"
 SUMMARY_SENTENCES = 6
 MIN_SUMMARY_CHARS = 220
 TIMEOUT = 20
+
+# The seen/cache files are read-modify-write; the HTTP server can serve
+# overlapping requests, so serialise scraper runs (see serve()).
+_STATE_LOCK = threading.Lock()
 
 # Story sources: Wikipedia pages whose content IS a legend / creature / deity.
 # Philippine mythology front-loaded, world folklore behind it for variety weeks.
@@ -227,7 +232,8 @@ def serve(port: int, limit: int) -> None:  # pragma: no cover (manual use)
             query = urllib.parse.parse_qs(parsed.query)
             n = max(1, min(int(query.get("limit", [str(limit)])[0]), 50))
             if parsed.path == "/stories":
-                stories = scrape_stories(n, jitter=0.5)
+                with _STATE_LOCK:
+                    stories = scrape_stories(n, jitter=0.5)
                 self._send(200, {"count": len(stories),
                                  "note": "empty means seen-file has everything",
                                  "stories": stories})

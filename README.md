@@ -22,7 +22,8 @@ folklore_scraper.py ──push──▶ Make.com webhook ──▶ Gemini script
 
 ```bash
 python3 folklore_scraper.py scrape --limit 5          # push to webhooks
-python3 folklore_scraper.py serve --port 8099         # JSON API for n8n to poll
+python3 folklore_scraper.py serve --port 8099         # JSON API for n8n (loopback only)
+python3 folklore_scraper.py serve --host 0.0.0.0      # API reachable by Docker containers
 python3 folklore_scraper.py scrape --limit 10 --out stories.json
 ```
 
@@ -79,9 +80,22 @@ bait question → `CAPTION:` line with hashtags). Edit module 2 to taste.
 **Workflow:** Schedule (Wed 6AM PHT) → HTTP pull → Split → Gemini → Tidy → File → Telegram.
 
 1. n8n → **Workflows → Import from File** → `n8n/workflow.json`.
-2. **Scraper host**: the workflow pulls `http://127.0.0.1:8099/stories?limit=3`.
-   - n8n on the same machine? Start the API: `python3 folklore_scraper.py serve --port 8099`
-     (run it under systemd/screen so it stays up).
+2. **Scraper host**: the workflow pulls `http://host.docker.internal:8099/stories?limit=3`
+   (correct when n8n runs in Docker — `host.docker.internal` is mapped to the
+   host by the `extra_hosts` entry in the n8n compose file).
+   - Preferred: run the scraper as a persistent service (binds `0.0.0.0:8099`):
+     ```bash
+     mkdir -p ~/.config/systemd/user
+     cp make/folklore-scraper.service ~/.config/systemd/user/
+     systemctl --user daemon-reload
+     systemctl --user enable --now folklore-scraper.service
+     ```
+   - Dockerized n8n can't see `127.0.0.1` of the host — that's why the URL is
+     `host.docker.internal`. If the node times out (rather than refusing), allow
+     the Docker subnet through the firewall:
+     `sudo ufw allow from 172.16.0.0/12 to any port 8099 proto tcp`
+   - n8n **not** in Docker (same machine)? Edit the node URL to
+     `http://127.0.0.1:8099` and just run `python3 folklore_scraper.py serve --port 8099`.
    - n8n in the cloud? Run the scraper on any always-on box and edit the URL.
 3. **Gemini credential**: Credentials → New → **Header Auth** →
    name `x-goog-api-key`, value = your Gemini API key → select it in the Gemini node.

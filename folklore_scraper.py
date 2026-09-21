@@ -215,7 +215,7 @@ def deliver(stories: list[dict], urls: list[str]) -> bool:
 # --------------------------------------------------------------------------
 # Pull mode: tiny JSON API for n8n polling
 # --------------------------------------------------------------------------
-def serve(port: int, limit: int) -> None:  # pragma: no cover (manual use)
+def serve(port: int, host: str, limit: int) -> None:  # pragma: no cover (manual use)
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     class Handler(BaseHTTPRequestHandler):
@@ -259,9 +259,9 @@ def serve(port: int, limit: int) -> None:  # pragma: no cover (manual use)
         def log_message(self, fmt, *args):  # silence request logging
             pass
 
-    print(f"ai-folklore scraper API on http://127.0.0.1:{port}  "
+    print(f"ai-folklore scraper API on http://{host}:{port}  "
           f"(GET /stories?limit=5 · /story?title=Aswang · /health)", flush=True)
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    HTTPServer((host, port), Handler).serve_forever()
 
 
 # --------------------------------------------------------------------------
@@ -282,12 +282,15 @@ def main() -> int:
 
     p_serve = sub.add_parser("serve", help="small JSON API for n8n polling")
     p_serve.add_argument("--port", type=int, default=8099)
+    p_serve.add_argument("--host", default="127.0.0.1",
+                         help="bind address (default 127.0.0.1; use 0.0.0.0 so Docker "
+                              "containers can reach it via host.docker.internal)")
     p_serve.add_argument("--limit", type=int, default=5, help="default /stories limit")
 
     args = parser.parse_args()
 
     if args.cmd == "serve":
-        serve(args.port, args.limit)
+        serve(args.port, args.host, args.limit)
         return 0
 
     if args.fresh and os.path.exists(SEEN_FILE):

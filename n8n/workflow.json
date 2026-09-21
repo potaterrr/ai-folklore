@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:8099/stories?limit=3",
+        "url": "http://host.docker.internal:8099/stories?limit=3",
         "options": {
           "response": {
             "response": {
@@ -34,7 +34,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [220, 0],
-      "notes": "Host the scraper with: python3 folklore_scraper.py serve --port 8099. Point at your server's IP if n8n runs elsewhere."
+      "notes": "Scraper must be reachable from the n8n container. On the n8n host run: systemctl --user enable --now folklore-scraper.service (binds 0.0.0.0:8099). host.docker.internal resolves to the host via the compose extra_hosts entry. If it times out, allow the Docker subnet through the firewall: sudo ufw allow from 172.16.0.0/12 to any port 8099 proto tcp. n8n NOT in Docker? Use http://127.0.0.1:8099 instead."
     },
     {
       "parameters": {

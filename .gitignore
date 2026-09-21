@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+folklore-scraper-seen.json
+folklore-scraper-cache.json
+stories.json
+.env
